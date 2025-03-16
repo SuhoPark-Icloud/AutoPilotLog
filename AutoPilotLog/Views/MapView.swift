@@ -3,6 +3,17 @@ import MapKit
 import SwiftData
 import SwiftUI
 
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.85 : 1)
+            .brightness(configuration.isPressed ? -0.05 : 0)
+            .opacity(configuration.isPressed ? 0.9 : 1)  // 투명도 변화 추가
+            .rotationEffect(Angle(degrees: configuration.isPressed ? 3 : 0))  // 약간의 회전 추가
+            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
+    }
+}
+
 struct MapView: View {
     @StateObject private var locationService = LocationService()
     @State private var cameraPosition: MapCameraPosition = .automatic
@@ -37,8 +48,7 @@ struct MapView: View {
                     cameraPosition = .region(
                         MKCoordinateRegion(
                             center: location.coordinate,
-                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                        ))
+                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))
                 }
             }
             .onLongPressGesture {
@@ -60,6 +70,10 @@ struct MapView: View {
                 HStack {
                     Spacer()
                     Button(action: {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                            // 버튼 누를 때 작은 애니메이션 효과
+                        }
+
                         if let location = locationService.location {
                             selectedCoordinate = location.coordinate
                             showIssueForm = true
@@ -70,13 +84,20 @@ struct MapView: View {
                             showIssueForm = true
                         }
                     }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 50))
-                            .foregroundColor(.blue)
-                            .background(Color.white.clipShape(Circle()))
-                            .shadow(radius: 4)
+                        ZStack {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 56, height: 56)
+                                .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 2)
+
+                            Image(systemName: "plus")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.blue)
+                        }
                     }
-                    .padding()
+                    .buttonStyle(ScaleButtonStyle())  // 아래에 정의한 버튼 스타일 적용
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 30)
                 }
             }
         }

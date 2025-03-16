@@ -13,7 +13,14 @@ struct IssueDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 // 이슈 위치 지도
-                Map {
+                Map(
+                    position: .constant(
+                        MapCameraPosition.region(
+                            MKCoordinateRegion(
+                                center: issue.coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                            )))
+                ) {
                     Marker(issue.title, coordinate: issue.coordinate)
                         .tint(getSeverityColor(issue.severity))
                 }

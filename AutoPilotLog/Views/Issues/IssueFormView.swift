@@ -18,17 +18,8 @@ struct IssueFormView: View {
                 Section(header: Text("이슈 정보")) {
                     TextField("제목", text: $title)
 
-                    VStack(alignment: .leading) {
-                        Text("설명")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .padding(.leading, 4)
-
-                        TextField("이슈에 대한 상세 설명을 입력하세요", text: $issueDescription, axis: .vertical)
-                            .lineLimit(5...10)
-                            .textFieldStyle(.roundedBorder)
-                            .padding(.top, 2)
-                    }
+                    TextField("이슈에 대한 상세 설명을 입력하세요", text: $issueDescription, axis: .vertical)
+                        .lineLimit(5...10)
                 }
 
                 Section(header: Text("심각도")) {
