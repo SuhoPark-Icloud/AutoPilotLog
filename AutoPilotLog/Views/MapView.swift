@@ -57,4 +57,5 @@ struct MapView: View {
 
 #Preview {
     MapView()
+        .modelContainer(for: Issue.self, inMemory: true)
 }

@@ -1,10 +1,3 @@
-//
-//  ContentView.swift
-//  AutoPilotLog
-//
-//  Created by Suho Park on 3/16/25.
-//
-
 import SwiftData
 import SwiftUI
 
@@ -19,7 +12,7 @@ struct ContentView: View {
                 }
                 .tag(0)
 
-            Text("이슈 목록")
+            IssueListView()
                 .tabItem {
                     Label("이슈 목록", systemImage: "list.bullet")
                 }
@@ -36,4 +29,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .modelContainer(for: Issue.self, inMemory: true)
 }
