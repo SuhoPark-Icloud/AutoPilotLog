@@ -89,11 +89,15 @@ struct MapView: View {
         ) {
             if let coordinate = selectedCoordinate {
                 IssueFormView(coordinate: coordinate)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             } else {
                 // 좌표가 없는 경우 기본 좌표 사용
                 let defaultCoordinate = CLLocationCoordinate2D(
                     latitude: 37.5665, longitude: 126.9780)
                 IssueFormView(coordinate: defaultCoordinate)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
             }
         }
     }
