@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct IssueListView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Issue.createdAt, order: .reverse) private var issues: [Issue]
     @State private var showingDeleteAlert = false
     @State private var issueToDelete: Issue?
@@ -70,7 +71,6 @@ struct IssueListView: View {
     }
 
     private func deleteIssue(_ issue: Issue) {
-        @Environment(\.modelContext) var modelContext
         modelContext.delete(issue)
     }
 }
