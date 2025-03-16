@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
+    @StateObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -18,12 +19,13 @@ struct ContentView: View {
                 }
                 .tag(1)
 
-            Text("설정")
+            SettingsView()
                 .tabItem {
                     Label("설정", systemImage: "gear")
                 }
                 .tag(2)
         }
+        .withTheme()
     }
 }
 

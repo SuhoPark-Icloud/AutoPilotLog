@@ -1,18 +1,14 @@
-//
-//  AutoPilotLogApp.swift
-//  AutoPilotLog
-//
-//  Created by Suho Park on 3/16/25.
-//
-
 import SwiftData
 import SwiftUI
 
 @main
 struct AutoPilotLogApp: App {
+    @StateObject private var themeManager = ThemeManager.shared
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .withTheme()
         }
         .modelContainer(for: Issue.self)
     }
