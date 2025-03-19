@@ -59,19 +59,31 @@ struct IssueFormView: View {
     }
 
     private func saveIssue() {
-        let modelContext = modelContext
+        // 필수 필드 검증
+        guard !title.isEmpty else { return }
 
-        let newIssue = Issue(
-            title: title,
-            issueDescription: issueDescription,
-            severity: severity,
-            latitude: coordinate.latitude,
-            longitude: coordinate.longitude
-        )
+        do {
+            // 이슈 생성
+            let newIssue = Issue(
+                title: title,
+                issueDescription: issueDescription,
+                severity: severity,
+                latitude: coordinate.latitude,
+                longitude: coordinate.longitude
+            )
 
-        modelContext.insert(newIssue)
+            // 모델 컨텍스트에 삽입
+            modelContext.insert(newIssue)
 
-        dismiss()
+            // 변경 사항 저장
+            try modelContext.save()
+
+            // 폼 닫기
+            dismiss()
+        } catch {
+            print("이슈 저장 오류: \(error)")
+            // 오류 처리 (실제 앱에서는 사용자에게 알림 표시)
+        }
     }
 }
 
