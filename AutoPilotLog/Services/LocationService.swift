@@ -1,10 +1,3 @@
-//
-//  LocationService.swift
-//  AutoPilotLog
-//
-//  Created by Suho Park on 3/16/25.
-//
-
 import Combine
 import CoreLocation
 import Foundation
@@ -23,18 +16,33 @@ class LocationService: NSObject, ObservableObject {
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.distanceFilter = 10
+
+        // 위치 업데이트를 더 빠르게 시작
         locationManager.startUpdatingLocation()
-        locationManager.requestWhenInUseAuthorization()
+
+        // 이미 권한이 있는 경우 즉시 위치 요청
+        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+            locationManager.startUpdatingLocation()
+        } else if authorizationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        }
     }
 
     func requestPermission() {
-        locationManager.requestWhenInUseAuthorization()
+        if authorizationStatus == .notDetermined {
+            locationManager.requestWhenInUseAuthorization()
+        }
     }
 }
 
 extension LocationService: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+
+        // 권한이 변경되면 위치 업데이트 다시 시작
+        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+            manager.startUpdatingLocation()
+        }
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {

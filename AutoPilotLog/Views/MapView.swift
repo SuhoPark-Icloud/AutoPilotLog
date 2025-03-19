@@ -20,12 +20,13 @@ struct MapView: View {
     @State private var mapSelection: MKMapItem?
     @State private var showIssueForm = false
     @State private var selectedCoordinate: CLLocationCoordinate2D?
+    @State private var hasSetInitialLocation = false
 
     @Query private var issues: [Issue]
 
     var body: some View {
         ZStack {
-            Map(initialPosition: cameraPosition) {
+            Map(position: $cameraPosition) {
                 // 사용자 위치 표시
                 UserAnnotation()
 
@@ -42,13 +43,21 @@ struct MapView: View {
             }
             .mapStyle(.standard(elevation: .realistic))
             .onAppear {
-                // 앱 시작 시 사용자 위치로 카메라 위치 설정
+                // 앱 시작 시 사용자 위치 권한 요청
                 locationService.requestPermission()
-                if let location = locationService.location {
+            }
+            .onChange(of: locationService.location) { _, newValue in
+                // 위치가 업데이트될 때마다 실행
+                guard let newLocation = newValue else { return }
+
+                // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
+                if !hasSetInitialLocation {
                     cameraPosition = .region(
                         MKCoordinateRegion(
-                            center: location.coordinate,
-                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)))
+                            center: newLocation.coordinate,
+                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01))
+                    )
+                    hasSetInitialLocation = true
                 }
             }
             .onLongPressGesture {
@@ -95,7 +104,7 @@ struct MapView: View {
                                 .foregroundColor(.blue)
                         }
                     }
-                    .buttonStyle(ScaleButtonStyle())  // 아래에 정의한 버튼 스타일 적용
+                    .buttonStyle(ScaleButtonStyle())
                     .padding(.trailing, 20)
                     .padding(.bottom, 30)
                 }
@@ -131,9 +140,4 @@ struct MapView: View {
         case .critical: return .red
         }
     }
-}
-
-#Preview {
-    MapView()
-        .modelContainer(for: Issue.self, inMemory: true)
 }
