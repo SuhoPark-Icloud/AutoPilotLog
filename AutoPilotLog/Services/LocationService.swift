@@ -17,13 +17,25 @@ class LocationService: NSObject, ObservableObject {
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
         locationManager.distanceFilter = 10
 
-        // 위치 업데이트를 더 빠르게 시작
+        // 위치 업데이트 즉시 시작
         locationManager.startUpdatingLocation()
 
-        // 이미 권한이 있는 경우 즉시 위치 요청
+        // 이미 권한이 있는 경우 추가 설정
         if (authorizationStatus == .authorizedWhenInUse)
             || (authorizationStatus == .authorizedAlways)
         {
+            // 더 빠른 위치 업데이트를 위한 설정
+            locationManager.pausesLocationUpdatesAutomatically = false
+
+            // iOS 14 이상에서는 정확도 요청 (Info.plist에 NSLocationTemporaryUsageDescriptionDictionary 키 필요)
+            if #available(iOS 14.0, *) {
+                if locationManager.accuracyAuthorization == .reducedAccuracy {
+                    // 정확한 위치가 필요한 이유에 대한 키 (Info.plist에 정의해야 함)
+                    locationManager.requestTemporaryFullAccuracyAuthorization(
+                        withPurposeKey: "AutoPilotIssueTracking")
+                }
+            }
+
             locationManager.startUpdatingLocation()
         } else if authorizationStatus == .notDetermined {
             locationManager.requestWhenInUseAuthorization()
@@ -35,19 +47,6 @@ class LocationService: NSObject, ObservableObject {
             locationManager.requestWhenInUseAuthorization()
         }
     }
-
-    func hasValidLocation() -> Bool {
-        // 위치 정보가 존재하고 최근 60초 이내에 업데이트되었는지 확인
-        if let location = location {
-            let now = Date()
-            let locationTimestamp = location.timestamp
-            let timeDifference = now.timeIntervalSince(locationTimestamp)
-
-            // 60초 이내에 업데이트된 위치 정보만 유효하다고 판단
-            return timeDifference <= 60
-        }
-        return false
-    }
 }
 
 extension LocationService: CLLocationManagerDelegate {
@@ -58,6 +57,17 @@ extension LocationService: CLLocationManagerDelegate {
         if (authorizationStatus == .authorizedWhenInUse)
             || (authorizationStatus == .authorizedAlways)
         {
+            // 더 빠른 위치 업데이트를 위한 설정
+            locationManager.pausesLocationUpdatesAutomatically = false
+
+            // iOS 14 이상에서는 정확도 요청
+            if #available(iOS 14.0, *) {
+                if locationManager.accuracyAuthorization == .reducedAccuracy {
+                    locationManager.requestTemporaryFullAccuracyAuthorization(
+                        withPurposeKey: "AutoPilotIssueTracking")
+                }
+            }
+
             manager.startUpdatingLocation()
         }
     }
