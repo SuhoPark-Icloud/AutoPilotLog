@@ -21,7 +21,9 @@ class LocationService: NSObject, ObservableObject {
         locationManager.startUpdatingLocation()
 
         // 이미 권한이 있는 경우 즉시 위치 요청
-        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+        if (authorizationStatus == .authorizedWhenInUse)
+            || (authorizationStatus == .authorizedAlways)
+        {
             locationManager.startUpdatingLocation()
         } else if authorizationStatus == .notDetermined {
             locationManager.requestWhenInUseAuthorization()
@@ -33,6 +35,19 @@ class LocationService: NSObject, ObservableObject {
             locationManager.requestWhenInUseAuthorization()
         }
     }
+
+    func hasValidLocation() -> Bool {
+        // 위치 정보가 존재하고 최근 60초 이내에 업데이트되었는지 확인
+        if let location = location {
+            let now = Date()
+            let locationTimestamp = location.timestamp
+            let timeDifference = now.timeIntervalSince(locationTimestamp)
+
+            // 60초 이내에 업데이트된 위치 정보만 유효하다고 판단
+            return timeDifference <= 60
+        }
+        return false
+    }
 }
 
 extension LocationService: CLLocationManagerDelegate {
@@ -40,7 +55,9 @@ extension LocationService: CLLocationManagerDelegate {
         authorizationStatus = manager.authorizationStatus
 
         // 권한이 변경되면 위치 업데이트 다시 시작
-        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+        if (authorizationStatus == .authorizedWhenInUse)
+            || (authorizationStatus == .authorizedAlways)
+        {
             manager.startUpdatingLocation()
         }
     }
