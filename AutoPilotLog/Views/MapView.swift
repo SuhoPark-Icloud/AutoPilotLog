@@ -15,8 +15,8 @@ struct ScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.85 : 1)
             .brightness(configuration.isPressed ? -0.05 : 0)
-            .opacity(configuration.isPressed ? 0.9 : 1) // 투명도 변화 추가
-            .rotationEffect(Angle(degrees: configuration.isPressed ? 3 : 0)) // 약간의 회전 추가
+            .opacity(configuration.isPressed ? 0.9 : 1)  // 투명도 변화 추가
+            .rotationEffect(Angle(degrees: configuration.isPressed ? 3 : 0))  // 약간의 회전 추가
             .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
     }
 }
@@ -24,23 +24,24 @@ struct ScaleButtonStyle: ButtonStyle {
 struct MapView: View {
     @StateObject private var locationService = LocationService()
     @State private var cameraPosition: MapCameraPosition = .automatic
-    @State private var mapSelection: MKMapItem?
     @State private var hasSetInitialLocation = false
     @State private var showLocationAlert = false
     @State private var sheetCoordinate: CLLocationCoordinate2D? = nil
+    @State private var selectedIssue: Issue?
 
     @Query private var issues: [Issue]
 
     var body: some View {
         ZStack {
-            Map(position: $cameraPosition) {
+            Map(position: $cameraPosition, selection: $selectedIssue) {
                 // 사용자 위치 표시
                 UserAnnotation()
 
-                // 저장된 이슈 마커 표시
+                // 저장된 이슈 마커 표시 - IssueDetailView 스타일 적용
                 ForEach(issues) { issue in
                     Marker(issue.title, coordinate: issue.coordinate)
                         .tint(getMarkerColor(for: issue.severity))
+                        .tag(issue)
                 }
             }
             .mapControls {
@@ -105,6 +106,11 @@ struct MapView: View {
         }
         .sheet(item: $sheetCoordinate, onDismiss: { sheetCoordinate = nil }) { coordinate in
             IssueFormView(coordinate: coordinate)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $selectedIssue) { issue in
+            IssueDetailView(issue: issue)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
