@@ -22,7 +22,8 @@ struct ScaleButtonStyle: ButtonStyle {
 }
 
 struct MapView: View {
-    @StateObject private var locationService = LocationService()
+    // LocationsHandler 싱글톤 사용
+    @StateObject private var locationHandler = LocationsHandler.shared
     @State private var cameraPosition: MapCameraPosition = .automatic
     @State private var hasSetInitialLocation = false
     @State private var showLocationAlert = false
@@ -37,7 +38,7 @@ struct MapView: View {
                 // 사용자 위치 표시
                 UserAnnotation()
 
-                // 저장된 이슈 마커 표시 - IssueDetailView 스타일 적용
+                // 저장된 이슈 마커 표시
                 ForEach(issues) { issue in
                     Marker(issue.title, coordinate: issue.coordinate)
                         .tint(getMarkerColor(for: issue.severity))
@@ -51,27 +52,34 @@ struct MapView: View {
             }
             .mapStyle(.standard(elevation: .realistic))
             .onAppear {
-                // 앱 시작 시 사용자 위치 권한 요청
-                locationService.requestPermission()
+                // 앱 시작 시 위치 업데이트 시작
+                locationHandler.startLocationUpdates()
             }
-            .onChange(of: locationService.location) { _, newValue in
+            .onChange(of: locationHandler.lastLocation) { _, newValue in
                 // 위치가 업데이트될 때마다 실행
-                guard let newLocation = newValue else { return }
-
                 // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
                 if !hasSetInitialLocation {
                     cameraPosition = .region(
                         MKCoordinateRegion(
-                            center: newLocation.coordinate,
+                            center: newValue.coordinate,
                             span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                         )
                     )
                     hasSetInitialLocation = true
                 }
             }
-            .onLongPressGesture {
-                // 지도 길게 누르기 시 위치 확인
-                checkLocationAndProceed()
+
+            // 백그라운드 활동 토글 (선택적으로 추가)
+            VStack {
+                HStack {
+                    Spacer()
+                    Toggle("백그라운드 추적", isOn: $locationHandler.backgroundActivity)
+                        .padding()
+                        .background(Color.white.opacity(0.7))
+                        .cornerRadius(8)
+                        .padding([.top, .trailing])
+                }
+                Spacer()
             }
 
             // 이슈 추가 플로팅 버튼
@@ -123,8 +131,11 @@ struct MapView: View {
 
     // 위치 정보 확인 및 처리 메서드
     private func checkLocationAndProceed() {
-        if let location = locationService.location {
-            sheetCoordinate = location.coordinate
+        // lastLocation이 기본값이 아니라면(좌표가 0.0이 아니라면) 사용
+        if locationHandler.lastLocation.coordinate.latitude != 0.0
+            && locationHandler.lastLocation.coordinate.longitude != 0.0
+        {
+            sheetCoordinate = locationHandler.lastLocation.coordinate
         } else {
             // 위치 정보가 없는 경우 알림만 표시
             showLocationAlert = true
