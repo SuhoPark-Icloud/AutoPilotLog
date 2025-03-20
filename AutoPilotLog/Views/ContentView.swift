@@ -2,29 +2,32 @@ import SwiftData
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab = 0
+    @State private var selectedTab: AppTab = .map
     @StateObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            MapView()
-                .tabItem {
-                    Label("지도", systemImage: "map")
-                }
-                .tag(0)
+            // 지도 탭
+            Tab(AppTab.map.title, systemImage: AppTab.map.iconName, value: AppTab.map) {
+                MapView()
+            }
 
-            IssueListView()
-                .tabItem {
-                    Label("이슈 목록", systemImage: "list.bullet")
-                }
-                .tag(1)
+            // 이슈 목록 탭
+            Tab(
+                AppTab.issueList.title, systemImage: AppTab.issueList.iconName,
+                value: AppTab.issueList
+            ) {
+                IssueListView()
+            }
 
-            SettingsView()
-                .tabItem {
-                    Label("설정", systemImage: "gear")
-                }
-                .tag(2)
+            // 설정 탭
+            Tab(
+                AppTab.settings.title, systemImage: AppTab.settings.iconName, value: AppTab.settings
+            ) {
+                SettingsView()
+            }
         }
+        .tabViewStyle(.sidebarAdaptable)
         .withTheme()
     }
 }
