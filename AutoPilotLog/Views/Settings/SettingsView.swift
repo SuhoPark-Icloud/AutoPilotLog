@@ -11,8 +11,6 @@ struct SettingsView: View {
     @AppStorage("defaultSeverity") private var defaultSeverity: String = Severity.medium.rawValue
     @AppStorage("distanceUnit") private var distanceUnit: String = "kilometers"
 
-    @StateObject private var themeManager = ThemeManager.shared
-
     // 앱 정보
     private let appVersion =
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -49,18 +47,6 @@ struct SettingsView: View {
                     Picker("거리 단위", selection: $distanceUnit) {
                         Text("킬로미터").tag("kilometers")
                         Text("마일").tag("miles")
-                    }
-
-                    Toggle(
-                        "다크 모드",
-                        isOn: Binding(
-                            get: { themeManager.isDarkModeEnabled },
-                            set: { themeManager.setDarkMode($0) }
-                        ))
-
-                    // 테마 색상 선택
-                    NavigationLink("테마 색상 설정") {
-                        ThemeColorPicker()
                     }
                 }
 
@@ -146,7 +132,6 @@ struct SettingsView: View {
     private func resetSettings() {
         username = ""
         useLocationTracking = true
-        themeManager.setDarkMode(false)
         defaultSeverity = Severity.medium.rawValue
         distanceUnit = "kilometers"
 

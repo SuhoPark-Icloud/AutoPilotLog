@@ -3,7 +3,6 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab: AppTab = .map
-    @StateObject private var themeManager = ThemeManager.shared
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -28,7 +27,6 @@ struct ContentView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
-        .withTheme()
     }
 }
 
