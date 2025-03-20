@@ -6,20 +6,45 @@ struct IssueFormView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    // 초기 상태값을 viewDidLoad 시점으로 미루기 위한 @State.
+    // 이렇게 하면 뷰가 로드될 때마다 값을 다시 초기화하지 않음
     @State private var title: String = ""
     @State private var issueDescription: String = ""
-    @State private var severity: Severity = .medium
+    @State private var severity: Severity
+
+    // TextField 포커스 상태 관리
+    @FocusState private var isTitleFocused: Bool
 
     let coordinate: CLLocationCoordinate2D
+
+    // @AppStorage에서 기본 심각도를 가져옴
+    init(coordinate: CLLocationCoordinate2D) {
+        self.coordinate = coordinate
+        let defaultSeverityString =
+            UserDefaults.standard.string(forKey: "defaultSeverity") ?? Severity.medium.rawValue
+        _severity = State(initialValue: Severity(rawValue: defaultSeverityString) ?? .medium)
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(header: Text("이슈 정보")) {
                     TextField("제목", text: $title)
+                        .focused($isTitleFocused)
+                        // 입력 지연을 방지하기 위한 최적화
+                        .disableAutocorrection(true)
+                        .autocapitalization(.none)
+                        .onAppear {
+                            // 뷰가 나타나면 딜레이 후 텍스트 필드에 포커스
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                isTitleFocused = true
+                            }
+                        }
 
                     TextField("이슈에 대한 상세 설명을 입력하세요", text: $issueDescription, axis: .vertical)
                         .lineLimit(5...10)
+                        // 입력 최적화
+                        .disableAutocorrection(true)
                 }
 
                 Section(header: Text("심각도")) {
@@ -59,11 +84,10 @@ struct IssueFormView: View {
     }
 
     private func saveIssue() {
-        // 필수 필드 검증
         guard !title.isEmpty else { return }
 
-        do {
-            // 이슈 생성
+        // Task를 사용하여 백그라운드에서 처리
+        Task {
             let newIssue = Issue(
                 title: title,
                 issueDescription: issueDescription,
@@ -72,17 +96,16 @@ struct IssueFormView: View {
                 longitude: coordinate.longitude
             )
 
-            // 모델 컨텍스트에 삽입
-            modelContext.insert(newIssue)
+            // UI 업데이트는 메인 스레드에서 처리
+            await MainActor.run {
+                modelContext.insert(newIssue)
 
-            // 변경 사항 저장
-            try modelContext.save()
+                // 변경 사항 저장 시 try? 사용하여 에러 처리 간소화
+                try? modelContext.save()
 
-            // 폼 닫기
-            dismiss()
-        } catch {
-            print("이슈 저장 오류: \(error)")
-            // 오류 처리 (실제 앱에서는 사용자에게 알림 표시)
+                // 폼 닫기
+                dismiss()
+            }
         }
     }
 }
