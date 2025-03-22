@@ -69,19 +69,6 @@ struct MapView: View {
                 }
             }
 
-            // 백그라운드 활동 토글 (선택적으로 추가)
-            VStack {
-                HStack {
-                    Spacer()
-                    Toggle("백그라운드 추적", isOn: $locationHandler.backgroundActivity)
-                        .padding()
-                        .background(Color.white.opacity(0.7))
-                        .cornerRadius(8)
-                        .padding([.top, .trailing])
-                }
-                Spacer()
-            }
-
             // 이슈 추가 플로팅 버튼
             VStack {
                 Spacer()

@@ -4,12 +4,10 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @StateObject private var locationHandler = LocationsHandler.shared
 
     // 사용자 기본 설정 저장
-    @AppStorage("username") private var username: String = ""
-    @AppStorage("useLocationTracking") private var useLocationTracking: Bool = true
     @AppStorage("defaultSeverity") private var defaultSeverity: String = Severity.medium.rawValue
-    @AppStorage("distanceUnit") private var distanceUnit: String = "kilometers"
 
     // 앱 정보
     private let appVersion =
@@ -27,26 +25,14 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             List {
-                // 사용자 프로필 섹션
-                Section(header: Text("프로필 설정")) {
-                    TextField("사용자 이름", text: $username)
-                        .autocapitalization(.none)
-                        .disableAutocorrection(true)
-                }
-
                 // 앱 동작 설정 섹션
                 Section(header: Text("앱 설정")) {
-                    Toggle("위치 추적 사용", isOn: $useLocationTracking)
+                    Toggle("위치 추적", isOn: $locationHandler.backgroundActivity)
 
                     Picker("기본 심각도", selection: $defaultSeverity) {
                         ForEach(Severity.allCases, id: \.self) { severity in
                             Text(severity.rawValue).tag(severity.rawValue)
                         }
-                    }
-
-                    Picker("거리 단위", selection: $distanceUnit) {
-                        Text("킬로미터").tag("kilometers")
-                        Text("마일").tag("miles")
                     }
                 }
 
@@ -130,10 +116,7 @@ struct SettingsView: View {
 
     // 설정 초기화 함수
     private func resetSettings() {
-        username = ""
-        useLocationTracking = true
         defaultSeverity = Severity.medium.rawValue
-        distanceUnit = "kilometers"
 
         // 기타 저장된 설정들도 여기서 초기화
     }
