@@ -8,6 +8,8 @@ struct SettingsView: View {
 
     // 사용자 기본 설정 저장
     @AppStorage("defaultSeverity") private var defaultSeverity: String = Severity.medium.rawValue
+    // 개발자 모드 설정
+    @AppStorage("developerMode") private var developerMode: Bool = false
 
     // 앱 정보
     private let appVersion =
@@ -21,6 +23,7 @@ struct SettingsView: View {
     @State private var exportedFileURL: URL?
     @State private var showingErrorAlert = false
     @State private var errorMessage = ""
+    @State private var showingDbResetAlert = false
 
     var body: some View {
         NavigationStack {
@@ -34,6 +37,11 @@ struct SettingsView: View {
                             Text(severity.rawValue).tag(severity.rawValue)
                         }
                     }
+
+                    // 개발자 모드 활성화
+                    #if DEBUG
+                        Toggle("개발자 모드", isOn: $developerMode)
+                    #endif
                 }
 
                 // 데이터 관리 섹션
@@ -53,6 +61,32 @@ struct SettingsView: View {
                     }
                     .foregroundColor(.red)
                 }
+
+                // 개발자 옵션 섹션 (디버그 모드와 개발자 모드가 활성화된 경우에만 표시)
+                #if DEBUG
+                    if developerMode {
+                        Section(header: Text("개발자 옵션").foregroundColor(.orange)) {
+                            // 현재 스키마 버전 표시
+                            HStack {
+                                Text("현재 스키마 버전")
+                                Spacer()
+                                Text(UserDefaults.standard.string(forKey: "schemaVersion") ?? "없음")
+                                    .foregroundColor(.gray)
+                            }
+
+                            // 데이터베이스 초기화 버튼
+                            Button("데이터베이스 초기화") {
+                                showingDbResetAlert = true
+                            }
+                            .foregroundColor(.red)
+
+                            // 주의 메시지
+                            Text("⚠️ 주의: 이 옵션은 모든 데이터를 삭제합니다")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
+                #endif
 
                 // 앱 정보 섹션
                 Section(header: Text("앱 정보")) {
@@ -95,6 +129,14 @@ struct SettingsView: View {
             } message: {
                 Text("모든 설정을 기본값으로 초기화하시겠습니까?")
             }
+            .alert("데이터베이스 초기화", isPresented: $showingDbResetAlert) {
+                Button("취소", role: .cancel) {}
+                Button("초기화", role: .destructive) {
+                    resetDatabase()
+                }
+            } message: {
+                Text("모든 데이터가 영구적으로 삭제됩니다. 계속하시겠습니까?")
+            }
             .alert("내보내기 완료", isPresented: $showingExportAlert) {
                 Button("공유하기") {
                     shareExportedFile()
@@ -119,6 +161,43 @@ struct SettingsView: View {
         defaultSeverity = Severity.medium.rawValue
 
         // 기타 저장된 설정들도 여기서 초기화
+    }
+
+    // 데이터베이스 초기화 함수
+    /// - 주의: 이 기능은 개발용으로만 사용하고 출시 전에 반드시 제거해야 합니다.
+    private func resetDatabase() {
+        #if DEBUG
+            // SwiftData 데이터베이스 파일 삭제
+            do {
+                try deleteSwiftDataStore()
+
+                // 스키마 버전 정보 삭제
+                UserDefaults.standard.removeObject(forKey: "schemaVersion")
+
+                // 성공 메시지 표시
+                errorMessage = "데이터베이스가 초기화되었습니다. 앱을 다시 시작하세요."
+                showingErrorAlert = true
+            } catch {
+                errorMessage = "데이터베이스 초기화 실패: \(error.localizedDescription)"
+                showingErrorAlert = true
+            }
+        #endif
+    }
+
+    /// SwiftData 데이터베이스 파일을 삭제합니다.
+    /// - 주의: 개발용으로만 사용하세요. 출시 전에 반드시 제거해야 합니다.
+    private func deleteSwiftDataStore() throws {
+        // 앱의 Application Support 디렉토리 내에 있는 SwiftData 데이터베이스 찾기
+        let applicationSupportURL = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask
+        ).first!
+        let storesURL = applicationSupportURL.appendingPathComponent("default.store")
+
+        // 존재하는 경우 삭제
+        if FileManager.default.fileExists(atPath: storesURL.path) {
+            try FileManager.default.removeItem(at: storesURL)
+            print("⚠️ SwiftData 데이터베이스 삭제됨: \(storesURL.path)")
+        }
     }
 
     // 데이터 내보내기 함수
