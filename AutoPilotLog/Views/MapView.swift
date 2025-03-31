@@ -29,44 +29,66 @@ struct MapView: View {
     @State private var showLocationAlert = false
     @State private var sheetCoordinate: CLLocationCoordinate2D? = nil
     @State private var selectedIssue: Issue?
+    @State private var tapLocation: CGPoint?
 
     @Query private var issues: [Issue]
 
     var body: some View {
         ZStack {
-            Map(position: $cameraPosition, selection: $selectedIssue) {
-                // 사용자 위치 표시
-                UserAnnotation()
+            MapReader { proxy in
+                Map(position: $cameraPosition, selection: $selectedIssue) {
+                    // 사용자 위치 표시
+                    UserAnnotation()
 
-                // 저장된 이슈 마커 표시
-                ForEach(issues) { issue in
-                    Marker(issue.title, coordinate: issue.coordinate)
-                        .tint(getMarkerColor(for: issue.severity))
-                        .tag(issue)
+                    // 저장된 이슈 마커 표시
+                    ForEach(issues) { issue in
+                        Marker(issue.title, coordinate: issue.coordinate)
+                            .tint(getMarkerColor(for: issue.severity))
+                            .tag(issue)
+                    }
                 }
-            }
-            .mapControls {
-                MapUserLocationButton()
-                MapCompass()
-                MapScaleView()
-            }
-            .mapStyle(.standard(elevation: .realistic))
-            .onAppear {
-                // 앱 시작 시 위치 업데이트 시작
-                locationHandler.startLocationUpdates()
-            }
-            .onChange(of: locationHandler.lastLocation) { _, newValue in
-                // 위치가 업데이트될 때마다 실행
-                // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
-                if !hasSetInitialLocation {
-                    cameraPosition = .region(
-                        MKCoordinateRegion(
-                            center: newValue.coordinate,
-                            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                .mapControls {
+                    MapUserLocationButton()
+                    MapCompass()
+                    MapScaleView()
+                }
+                .mapStyle(.standard(elevation: .realistic))
+                .onAppear {
+                    // 앱 시작 시 위치 업데이트 시작
+                    locationHandler.startLocationUpdates()
+                }
+                .onChange(of: locationHandler.lastLocation) { _, newValue in
+                    // 위치가 업데이트될 때마다 실행
+                    // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
+                    if !hasSetInitialLocation {
+                        cameraPosition = .region(
+                            MKCoordinateRegion(
+                                center: newValue.coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                            )
                         )
-                    )
-                    hasSetInitialLocation = true
+                        hasSetInitialLocation = true
+                    }
                 }
+                .gesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .sequenced(before: DragGesture(minimumDistance: 0))
+                        .onEnded { value in
+                            switch value {
+                            case .second(true, let drag):
+                                if let drag = drag {
+                                    let position = drag.location
+                                    // 화면 좌표를 지도 좌표로 변환
+                                    if let coordinate = proxy.convert(position, from: .local) {
+                                        // 해당 좌표로 이슈 생성 폼 표시
+                                        sheetCoordinate = coordinate
+                                    }
+                                }
+                            default:
+                                break
+                            }
+                        }
+                )
             }
 
             // 이슈 추가 플로팅 버튼
