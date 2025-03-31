@@ -21,6 +21,44 @@ struct ScaleButtonStyle: ButtonStyle {
     }
 }
 
+// 길게 누르기 제스처를 감지하는 UIViewRepresentable
+struct LongPressDetector: UIViewRepresentable {
+    var onLongPress: (CGPoint) -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+
+        let gesture = UILongPressGestureRecognizer(
+            target: context.coordinator, action: #selector(Coordinator.handleLongPress(_:)))
+        gesture.minimumPressDuration = 0.5
+        view.addGestureRecognizer(gesture)
+
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject {
+        var parent: LongPressDetector
+
+        init(_ parent: LongPressDetector) {
+            self.parent = parent
+        }
+
+        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
+            if gesture.state == .began {
+                let point = gesture.location(in: gesture.view)
+                parent.onLongPress(point)
+            }
+        }
+    }
+}
+
 struct MapView: View {
     // LocationsHandler 싱글톤 사용
     @StateObject private var locationHandler = LocationsHandler.shared
@@ -29,66 +67,56 @@ struct MapView: View {
     @State private var showLocationAlert = false
     @State private var sheetCoordinate: CLLocationCoordinate2D? = nil
     @State private var selectedIssue: Issue?
-    @State private var tapLocation: CGPoint?
 
     @Query private var issues: [Issue]
 
     var body: some View {
         ZStack {
             MapReader { proxy in
-                Map(position: $cameraPosition, selection: $selectedIssue) {
-                    // 사용자 위치 표시
-                    UserAnnotation()
+                ZStack {
+                    Map(position: $cameraPosition, selection: $selectedIssue) {
+                        // 사용자 위치 표시
+                        UserAnnotation()
 
-                    // 저장된 이슈 마커 표시
-                    ForEach(issues) { issue in
-                        Marker(issue.title, coordinate: issue.coordinate)
-                            .tint(getMarkerColor(for: issue.severity))
-                            .tag(issue)
-                    }
-                }
-                .mapControls {
-                    MapUserLocationButton()
-                    MapCompass()
-                    MapScaleView()
-                }
-                .mapStyle(.standard(elevation: .realistic))
-                .onAppear {
-                    // 앱 시작 시 위치 업데이트 시작
-                    locationHandler.startLocationUpdates()
-                }
-                .onChange(of: locationHandler.lastLocation) { _, newValue in
-                    // 위치가 업데이트될 때마다 실행
-                    // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
-                    if !hasSetInitialLocation {
-                        cameraPosition = .region(
-                            MKCoordinateRegion(
-                                center: newValue.coordinate,
-                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                            )
-                        )
-                        hasSetInitialLocation = true
-                    }
-                }
-                .gesture(
-                    LongPressGesture(minimumDuration: 0.5)
-                        .sequenced(before: DragGesture(minimumDistance: 0))
-                        .onEnded { value in
-                            switch value {
-                            case .second(true, let drag):
-                                if let drag = drag {
-                                    let position = drag.location
-                                    // 화면 좌표를 지도 좌표로 변환
-                                    if let coordinate = proxy.convert(position, from: .local) {
-                                        // 해당 좌표로 이슈 생성 폼 표시
-                                        sheetCoordinate = coordinate
-                                    }
-                                }
-                            default:
-                                break
-                            }
+                        // 저장된 이슈 마커 표시
+                        ForEach(issues) { issue in
+                            Marker(issue.title, coordinate: issue.coordinate)
+                                .tint(getMarkerColor(for: issue.severity))
+                                .tag(issue)
                         }
-                )
+                    }
+                    .mapControls {
+                        MapUserLocationButton()
+                        MapCompass()
+                        MapScaleView()
+                    }
+                    .mapStyle(.standard(elevation: .realistic))
+                    .onAppear {
+                        // 앱 시작 시 위치 업데이트 시작
+                        locationHandler.startLocationUpdates()
+                    }
+                    .onChange(of: locationHandler.lastLocation) { _, newValue in
+                        // 위치가 업데이트될 때마다 실행
+                        // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
+                        if !hasSetInitialLocation {
+                            cameraPosition = .region(
+                                MKCoordinateRegion(
+                                    center: newValue.coordinate,
+                                    span: MKCoordinateSpan(
+                                        latitudeDelta: 0.01, longitudeDelta: 0.01)
+                                )
+                            )
+                            hasSetInitialLocation = true
+                        }
+                    }
+
+                    // 제스처 감지를 위한 투명 오버레이
+                    LongPressDetector { point in
+                        if let coordinate = proxy.convert(point, from: .local) {
+                            sheetCoordinate = coordinate
+                        }
+                    }
+                }
             }
 
             // 이슈 추가 플로팅 버튼
