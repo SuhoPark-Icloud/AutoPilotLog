@@ -12,8 +12,9 @@ struct MapView: View {
     @State private var sheetCoordinate: CLLocationCoordinate2D? = nil
     @State private var selectedIssue: Issue?
 
-    // 길게 누른 위치를 저장하기 위한 변수 추가
-    @State private var longPressCoordinate: CLLocationCoordinate2D? = nil
+    // 길게 누른 위치와 관련된 상태
+    @State private var longPressCompletedCoordinate: CLLocationCoordinate2D? = nil
+    @GestureState private var longPressLocation: CGPoint? = nil
 
     @Query private var issues: [Issue]
 
@@ -31,8 +32,16 @@ struct MapView: View {
                             .tag(issue)
                     }
 
-                    // 길게 눌렀을 때 임시 마커 표시
-                    if let coordinate = longPressCoordinate {
+                    // 길게 누르는 중일 때 표시되는 임시 마커
+                    if let longPressLocation = longPressLocation,
+                        let coordinate = proxy.convert(longPressLocation, from: .local)
+                    {
+                        Marker("새 이슈 위치", systemImage: "plus.circle.fill", coordinate: coordinate)
+                            .tint(.blue)
+                    }
+
+                    // 길게 누르기 완료 후 표시되는 마커 (시트가 표시될 때)
+                    if let coordinate = longPressCompletedCoordinate {
                         Marker("새 이슈 위치", systemImage: "plus.circle.fill", coordinate: coordinate)
                             .tint(.blue)
                     }
@@ -44,12 +53,9 @@ struct MapView: View {
                 }
                 .mapStyle(.standard(elevation: .realistic))
                 .onAppear {
-                    // 앱 시작 시 위치 업데이트 시작
                     locationHandler.startLocationUpdates()
                 }
                 .onChange(of: locationHandler.lastLocation) { _, newValue in
-                    // 위치가 업데이트될 때마다 실행
-                    // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
                     if !hasSetInitialLocation {
                         cameraPosition = .region(
                             MKCoordinateRegion(
@@ -63,18 +69,32 @@ struct MapView: View {
                 .gesture(
                     LongPressGesture(minimumDuration: 0.5)
                         .sequenced(before: DragGesture(minimumDistance: 0))
+                        .updating($longPressLocation) { value, state, _ in
+                            switch value {
+                            case .first(true):
+                                // 길게 누르기 시작 - 현재 위치를 화면 중앙으로 간주
+                                state = CGPoint(
+                                    x: UIScreen.main.bounds.width / 2,
+                                    y: UIScreen.main.bounds.height / 2
+                                )
+                            case .second(true, let drag):
+                                // 드래그 위치 업데이트
+                                if let drag = drag {
+                                    state = drag.location
+                                }
+                            default:
+                                break
+                            }
+                        }
                         .onEnded { value in
                             switch value {
                             case .second(true, let drag):
-                                if let drag = drag {
-                                    // 화면 상의 좌표를 지리적 좌표로 변환
-                                    if let coordinate = proxy.convert(drag.location, from: .local) {
-                                        longPressCoordinate = coordinate
-                                        // 약간의 지연 후 시트 표시
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            sheetCoordinate = coordinate
-                                        }
-                                    }
+                                if let drag = drag,
+                                    let coordinate = proxy.convert(drag.location, from: .local)
+                                {
+                                    // 길게 누르기 완료 - 좌표 저장 및 시트 표시
+                                    longPressCompletedCoordinate = coordinate
+                                    sheetCoordinate = coordinate
                                 }
                             default:
                                 break
@@ -89,7 +109,6 @@ struct MapView: View {
                 HStack {
                     Spacer()
                     FloatingAddButton {
-                        // 위치 정보 확인 후 진행
                         checkLocationAndProceed()
                     }
                 }
@@ -99,8 +118,7 @@ struct MapView: View {
             item: $sheetCoordinate,
             onDismiss: {
                 sheetCoordinate = nil
-                // 시트가 닫힐 때 임시 마커도 제거
-                longPressCoordinate = nil
+                longPressCompletedCoordinate = nil
             }
         ) { coordinate in
             IssueFormView(coordinate: coordinate)
@@ -121,15 +139,13 @@ struct MapView: View {
 
     // 위치 정보 확인 및 처리 메서드
     private func checkLocationAndProceed() {
-        // lastLocation이 기본값이 아니라면(좌표가 0.0이 아니라면) 사용
         if locationHandler.lastLocation.coordinate.latitude != 0.0
             && locationHandler.lastLocation.coordinate.longitude != 0.0
         {
             let coordinate = locationHandler.lastLocation.coordinate
-            longPressCoordinate = coordinate // 현재 위치에 임시 마커 표시
+            longPressCompletedCoordinate = coordinate
             sheetCoordinate = coordinate
         } else {
-            // 위치 정보가 없는 경우 알림만 표시
             showLocationAlert = true
         }
     }
