@@ -12,6 +12,9 @@ struct MapView: View {
     @State private var sheetCoordinate: CLLocationCoordinate2D? = nil
     @State private var selectedIssue: Issue?
 
+    // 길게 누른 위치를 저장하기 위한 변수 추가
+    @State private var longPressCoordinate: CLLocationCoordinate2D? = nil
+
     @Query private var issues: [Issue]
 
     var body: some View {
@@ -26,6 +29,12 @@ struct MapView: View {
                         Marker(issue.title, coordinate: issue.coordinate)
                             .tint(getMarkerColor(for: issue.severity))
                             .tag(issue)
+                    }
+
+                    // 길게 눌렀을 때 임시 마커 표시
+                    if let coordinate = longPressCoordinate {
+                        Marker("새 이슈 위치", systemImage: "plus.circle.fill", coordinate: coordinate)
+                            .tint(.blue)
                     }
                 }
                 .mapControls {
@@ -51,21 +60,27 @@ struct MapView: View {
                         hasSetInitialLocation = true
                     }
                 }
-                .contextMenu {
-                    Button(action: {
-                        if let coordinate = proxy.convert(
-                            CGPoint(
-                                x: UIScreen.main.bounds.width / 2,
-                                y: UIScreen.main.bounds.height / 2
-                            ),
-                            from: .global
-                        ) {
-                            sheetCoordinate = coordinate
+                .gesture(
+                    LongPressGesture(minimumDuration: 0.5)
+                        .sequenced(before: DragGesture(minimumDistance: 0))
+                        .onEnded { value in
+                            switch value {
+                            case .second(true, let drag):
+                                if let drag = drag {
+                                    // 화면 상의 좌표를 지리적 좌표로 변환
+                                    if let coordinate = proxy.convert(drag.location, from: .local) {
+                                        longPressCoordinate = coordinate
+                                        // 약간의 지연 후 시트 표시
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                            sheetCoordinate = coordinate
+                                        }
+                                    }
+                                }
+                            default:
+                                break
+                            }
                         }
-                    }) {
-                        Label("이 위치에 이슈 추가", systemImage: "plus.circle")
-                    }
-                }
+                )
             }
 
             // 이슈 추가 플로팅 버튼
@@ -80,7 +95,14 @@ struct MapView: View {
                 }
             }
         }
-        .sheet(item: $sheetCoordinate, onDismiss: { sheetCoordinate = nil }) { coordinate in
+        .sheet(
+            item: $sheetCoordinate,
+            onDismiss: {
+                sheetCoordinate = nil
+                // 시트가 닫힐 때 임시 마커도 제거
+                longPressCoordinate = nil
+            }
+        ) { coordinate in
             IssueFormView(coordinate: coordinate)
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -103,7 +125,9 @@ struct MapView: View {
         if locationHandler.lastLocation.coordinate.latitude != 0.0
             && locationHandler.lastLocation.coordinate.longitude != 0.0
         {
-            sheetCoordinate = locationHandler.lastLocation.coordinate
+            let coordinate = locationHandler.lastLocation.coordinate
+            longPressCoordinate = coordinate // 현재 위치에 임시 마커 표시
+            sheetCoordinate = coordinate
         } else {
             // 위치 정보가 없는 경우 알림만 표시
             showLocationAlert = true
