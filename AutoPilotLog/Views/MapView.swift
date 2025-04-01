@@ -3,62 +3,6 @@ import MapKit
 import SwiftData
 import SwiftUI
 
-// 좌표를 Identifiable로 만들기 위한 확장
-extension CLLocationCoordinate2D: @retroactive Identifiable {
-    public var id: String {
-        "\(latitude),\(longitude)"
-    }
-}
-
-struct ScaleButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.85 : 1)
-            .brightness(configuration.isPressed ? -0.05 : 0)
-            .opacity(configuration.isPressed ? 0.9 : 1)  // 투명도 변화 추가
-            .rotationEffect(Angle(degrees: configuration.isPressed ? 3 : 0))  // 약간의 회전 추가
-            .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
-    }
-}
-
-// 길게 누르기 제스처를 감지하는 UIViewRepresentable
-struct LongPressDetector: UIViewRepresentable {
-    var onLongPress: (CGPoint) -> Void
-
-    func makeUIView(context: Context) -> UIView {
-        let view = UIView()
-        view.backgroundColor = .clear
-
-        let gesture = UILongPressGestureRecognizer(
-            target: context.coordinator, action: #selector(Coordinator.handleLongPress(_:)))
-        gesture.minimumPressDuration = 0.5
-        view.addGestureRecognizer(gesture)
-
-        return view
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    class Coordinator: NSObject {
-        var parent: LongPressDetector
-
-        init(_ parent: LongPressDetector) {
-            self.parent = parent
-        }
-
-        @objc func handleLongPress(_ gesture: UILongPressGestureRecognizer) {
-            if gesture.state == .began {
-                let point = gesture.location(in: gesture.view)
-                parent.onLongPress(point)
-            }
-        }
-    }
-}
-
 struct MapView: View {
     // LocationsHandler 싱글톤 사용
     @StateObject private var locationHandler = LocationsHandler.shared
@@ -73,48 +17,52 @@ struct MapView: View {
     var body: some View {
         ZStack {
             MapReader { proxy in
-                ZStack {
-                    Map(position: $cameraPosition, selection: $selectedIssue) {
-                        // 사용자 위치 표시
-                        UserAnnotation()
+                Map(position: $cameraPosition, selection: $selectedIssue) {
+                    // 사용자 위치 표시
+                    UserAnnotation()
 
-                        // 저장된 이슈 마커 표시
-                        ForEach(issues) { issue in
-                            Marker(issue.title, coordinate: issue.coordinate)
-                                .tint(getMarkerColor(for: issue.severity))
-                                .tag(issue)
-                        }
+                    // 저장된 이슈 마커 표시
+                    ForEach(issues) { issue in
+                        Marker(issue.title, coordinate: issue.coordinate)
+                            .tint(getMarkerColor(for: issue.severity))
+                            .tag(issue)
                     }
-                    .mapControls {
-                        MapUserLocationButton()
-                        MapCompass()
-                        MapScaleView()
-                    }
-                    .mapStyle(.standard(elevation: .realistic))
-                    .onAppear {
-                        // 앱 시작 시 위치 업데이트 시작
-                        locationHandler.startLocationUpdates()
-                    }
-                    .onChange(of: locationHandler.lastLocation) { _, newValue in
-                        // 위치가 업데이트될 때마다 실행
-                        // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
-                        if !hasSetInitialLocation {
-                            cameraPosition = .region(
-                                MKCoordinateRegion(
-                                    center: newValue.coordinate,
-                                    span: MKCoordinateSpan(
-                                        latitudeDelta: 0.01, longitudeDelta: 0.01)
-                                )
+                }
+                .mapControls {
+                    MapUserLocationButton()
+                    MapCompass()
+                    MapScaleView()
+                }
+                .mapStyle(.standard(elevation: .realistic))
+                .onAppear {
+                    // 앱 시작 시 위치 업데이트 시작
+                    locationHandler.startLocationUpdates()
+                }
+                .onChange(of: locationHandler.lastLocation) { _, newValue in
+                    // 위치가 업데이트될 때마다 실행
+                    // 초기 위치를 아직 설정하지 않았다면 카메라 업데이트
+                    if !hasSetInitialLocation {
+                        cameraPosition = .region(
+                            MKCoordinateRegion(
+                                center: newValue.coordinate,
+                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
                             )
-                            hasSetInitialLocation = true
-                        }
+                        )
+                        hasSetInitialLocation = true
                     }
-
-                    // 제스처 감지를 위한 투명 오버레이
-                    LongPressDetector { point in
-                        if let coordinate = proxy.convert(point, from: .local) {
+                }
+                .contextMenu {
+                    Button(action: {
+                        if let coordinate = proxy.convert(
+                            CGPoint(
+                                x: UIScreen.main.bounds.width / 2,
+                                y: UIScreen.main.bounds.height / 2),
+                            from: .global
+                        ) {
                             sheetCoordinate = coordinate
                         }
+                    }) {
+                        Label("이 위치에 이슈 추가", systemImage: "plus.circle")
                     }
                 }
             }
