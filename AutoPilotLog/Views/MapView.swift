@@ -56,7 +56,8 @@ struct MapView: View {
                         if let coordinate = proxy.convert(
                             CGPoint(
                                 x: UIScreen.main.bounds.width / 2,
-                                y: UIScreen.main.bounds.height / 2),
+                                y: UIScreen.main.bounds.height / 2
+                            ),
                             from: .global
                         ) {
                             sheetCoordinate = coordinate
@@ -72,28 +73,10 @@ struct MapView: View {
                 Spacer()
                 HStack {
                     Spacer()
-                    Button(action: {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            // 버튼 누를 때 작은 애니메이션 효과
-                        }
-
+                    FloatingAddButton {
                         // 위치 정보 확인 후 진행
                         checkLocationAndProceed()
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.white)
-                                .frame(width: 56, height: 56)
-                                .shadow(color: Color.black.opacity(0.3), radius: 3, x: 0, y: 2)
-
-                            Image(systemName: "plus")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.blue)
-                        }
                     }
-                    .buttonStyle(ScaleButtonStyle())
-                    .padding(.trailing, 20)
-                    .padding(.bottom, 30)
                 }
             }
         }
